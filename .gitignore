@@ -2,10 +2,9 @@
 *
 
 # Except for these directories:
-
-!catkin_ws/
 catkin_ws/*
-!catkin_ws/src
+!catkin_ws/src/
 !catkin_ws/src/*
+!catkin_ws/src/**/
+!catkin_ws/src/gazebo-pkgs
 !.gitignore
-!.git/*
