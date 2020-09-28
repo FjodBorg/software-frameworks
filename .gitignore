@@ -4,3 +4,4 @@
 # Except for these directories:
 
 !catkin_ws/src/*
+!.gitignore
