@@ -3,4 +3,4 @@
 
 # Except for the themes directories:
 
-!src/
+!catkin_ws/src/*
