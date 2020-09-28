@@ -1,6 +1,6 @@
 # Ignore everything:
 *
 
-# Except for the themes directories:
+# Except for these directories:
 
 !catkin_ws/src/*
