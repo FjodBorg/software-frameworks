@@ -19,7 +19,9 @@ if __name__ == "__main__":
 
     rospack = rospkg.RosPack()
     filedir = os.path.join(rospack.get_path("proj1"), "urdf/cube.urdf")
-    print(filedir)
+    # filedir = (
+    #     "/home/morten/repos/software-frameworks/catkin_ws/src/proj1/urdf/cube.urdf"
+    # )
     with open(filedir, "r") as f:
         product_xml = f.read()
 
@@ -29,7 +31,7 @@ if __name__ == "__main__":
 
     num_of_cubes = random.randint(2, 6)
 
-    for num in xrange(0, num_of_cubes):
+    for num in range(0, num_of_cubes):
         bin_y = random.uniform(0, 0.5)
         bin_x = random.uniform(0, 0.5)
         item_name = "cube{}".format(num)
@@ -38,6 +40,9 @@ if __name__ == "__main__":
         spawn_model(item_name, product_xml, "", item_pose, "world")
 
     filedir = os.path.join(rospack.get_path("proj1"), "urdf/bucket.urdf")
+    # filedir = (
+    #     "/home/morten/repos/software-frameworks/catkin_ws/src/proj1/urdf/bucket.urdf"
+    # )
     with open(filedir, "r") as f:
         product_xml = f.read()
 
