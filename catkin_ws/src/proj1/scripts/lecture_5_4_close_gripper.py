@@ -31,7 +31,7 @@ if __name__ == '__main__':
     pub = rospy.Publisher("/jaco/joint_control", JointState, queue_size=1)
 
     currentJointState = rospy.wait_for_message("/joint_states", JointState)
-    print 'Received!'
+    rospy.loginfo('Received!')
     currentJointState.header.stamp = rospy.get_rostime()
     tmp = 0.7
     #tmp_tuple=tuple([tmp] + list(currentJointState.position[1:]))
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     rate = rospy.Rate(10)  # 10hz
     for i in range(3):
         pub.publish(currentJointState)
-        print 'Published!'
+        rospy.loginfo('Published!')
         rate.sleep()
 
-    print 'end!'
+    rospy.loginfo('end!')
