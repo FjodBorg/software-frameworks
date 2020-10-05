@@ -54,12 +54,12 @@ def find_bucket(models, model_coordinates, p, scene):
 
     # Search of the object "bucket" in the model_states topic
     model_names = [i for i in models().model_names if "bucket" in i]
-    
+
     bucket_pose = []
     for model_name in model_names:
         bucket_pose.append(model_coordinates(model_name, "").pose.position)
 
-    print(bucket_pose)
+    # print(bucket_pose)
     rospy.loginfo(bucket_pose)
 
     return bucket_pose
@@ -122,8 +122,8 @@ if __name__ == "__main__":
     pose_goal.position = point_cubes[0]
     move_path(group, pose_goal, display_trajectory_publisher)
     # move_path(models, model_coordinates, p, scene, group, robot)
-    # pose_goal.position = point_bucket.position
-    # move_path(group, pose_goal, display_trajectory_publisher)
+    pose_goal.position = point_bucket.position
+    move_path(group, pose_goal, display_trajectory_publisher)
 
     gripper_open()
     gripper_close()
