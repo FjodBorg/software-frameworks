@@ -72,6 +72,10 @@ def move_path(group, goal_pose, display_trajectory_publisher):
     curr_pose = group.get_current_pose().pose
     waypoints = []
     waypoints.append(curr_pose)
+    inter_pose = goal_pose
+    inter_pose.position.pose.z = 1.25
+    waypoints.append(inter_pose)
+
     goal_pose.orientation = geometry_msgs.msg.Quaternion(
         *tf_conversions.transformations.quaternion_from_euler(0.0, -math.pi / 2, 0.0)
     )
@@ -83,11 +87,11 @@ def move_path(group, goal_pose, display_trajectory_publisher):
     display_trajectory.trajectory_start = robot.get_current_state()
     display_trajectory.trajectory.append(plan1)
     display_trajectory_publisher.publish(display_trajectory)
-    rospy.sleep(4.0)
+    rospy.sleep(1.0)
 
     # Moving to a pose goal
     group.execute(plan1, wait=True)
-    rospy.sleep(4.0)
+    rospy.sleep(1.0)
 
     # printing current position
     rospy.loginfo(
@@ -127,10 +131,13 @@ if __name__ == "__main__":
 
     pose_goal = group.get_current_pose().pose
     pose_goal.position = pose_cubes[0].pose.position
+    # pose_goal.position.x = 0.40
+    # pose_goal.position.y = -0.10
+    # pose_goal.position.z = 1.2
     move_path(group, pose_goal, display_trajectory_publisher)
     # move_path(models, model_coordinates, p, scene, group, robot)
-    pose_goal.position = pose_bucket.position
-    move_path(group, pose_goal, display_trajectory_publisher)
+    # pose_goal.position = pose_bucket.position
+    # move_path(group, pose_goal, display_trajectory_publisher)
 
     # gripper_open()
     # gripper_close()
