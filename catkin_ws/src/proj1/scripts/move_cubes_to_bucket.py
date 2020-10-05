@@ -36,11 +36,10 @@ def find_cube(models, model_coordinates, p, scene):
     for model_name in model_names:
         # extract all positions
         p = geometry_msgs.msg.PoseStamped()
-        p.pose.position = model_coordinates(model_name, "").pose.position
+        p.pose = model_coordinates(model_name, "").pose
         p.pose.position.x += -0.025
         p.pose.position.y += -0.025
         p.pose.position.z += -0.025
-        p.pose.orientation = model_coordinates(model_name, "").pose.orientation
 
         cube_poses.append(p)
         # p.header.frame_id = robot.get_planning_frame()
@@ -57,7 +56,7 @@ def find_bucket(models, model_coordinates, p, scene):
 
     # Search of the object "bucket" in the model_states topic
     model_names = [i for i in models().model_names if "bucket" in i]
-    
+
     bucket_pose = []
     for model_name in model_names:
         bucket_pose.append(model_coordinates(model_name, "").pose.position)
