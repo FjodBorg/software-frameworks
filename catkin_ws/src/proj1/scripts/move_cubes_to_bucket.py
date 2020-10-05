@@ -8,6 +8,7 @@ import tf_conversions
 from gazebo_msgs.srv import DeleteModel, SpawnModel
 from geometry_msgs.msg import *
 
+import moveit_commander
  
 from gazebo_msgs.srv import GetModelState
 from gazebo_msgs.srv import GetWorldProperties
@@ -16,8 +17,9 @@ from gazebo_msgs.srv import GetWorldProperties
 def find_cube(models, model_coordinates, p, scene):
     # TODO fix example code
     
-    #model_names = [i for i in models().model_names if "cube" in i]
+    model_names = [i for i in models().model_names if "cube" in i]
     
+    print(model_names)
     #height = 1.4
     #scene.world.collision_objects.clear()
     #for model_name in model_names:
@@ -56,8 +58,9 @@ if __name__ == "__main__":
     rospy.init_node("move_cubes")
     models = rospy.ServiceProxy('/gazebo/get_world_properties',GetWorldProperties)
     model_coordinates = rospy.ServiceProxy('/gazebo/get_model_state',GetModelState)
+    moveit_commander.roscpp_initialize(sys.argv)
     robot = moveit_commander.RobotCommander()
-    group = moveit_commander.MoveGroupCommander("arm")
+    group = moveit_commander.MoveGroupCommander("Arm")
     scene = moveit_commander.PlanningSceneInterface()
     p = geometry_msgs.msg.PoseStamped()
     
