@@ -10,13 +10,14 @@ import rospy
 import copy
 import sys
 import roslib
+import rospy
 roslib.load_manifest('proj1')
 
 
 def move_group_python_interface_tutorial():
     # BEGIN_TUTORIAL
     # First initialize moveit_commander and rospy.
-    rospy.loginfo( "============ Starting tutorial setup")
+    rospy.loginfo("============ Starting tutorial setup")
     moveit_commander.roscpp_initialize(sys.argv)
     rospy.init_node('move_group_python_interface_tutorial',
                     anonymous=True)
@@ -37,11 +38,11 @@ def move_group_python_interface_tutorial():
     rospy.loginfo( "============ End effector frame: %s", group.get_end_effector_link())
     # We can get a list of all the groups in the robot
     rospy.loginfo( "============ Robot Groups:")
-    rospy.loginfo( robot.get_group_names()
+    rospy.loginfo( robot.get_group_names())
     # Sometimes for debugging it is useful to print the entire state of the
     # robot.
     rospy.loginfo( "============ Printing robot state")
-    rospy.loginfo( robot.get_current_state()
+    rospy.loginfo( robot.get_current_state())
     rospy.loginfo( "============")
 
     # Let's setup the planner
