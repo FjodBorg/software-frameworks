@@ -109,17 +109,15 @@ if __name__ == "__main__":
     group.set_goal_orientation_tolerance(0.01)
     group.set_goal_tolerance(0.01)
     group.set_goal_joint_tolerance(0.01)
-    group.set_num_planning_attempts(100)
+    group.set_planning_time(360)
 
     p = geometry_msgs.msg.PoseStamped()
 
-    find_cube(models, model_coordinates, p, scene)
-    find_bucket(models, model_coordinates, p, scene)
+    cube_points = find_cube(models, model_coordinates, p, scene)
+    bucket_point = find_bucket(models, model_coordinates, p, scene)
 
     pose_goal = group.get_current_pose().pose
-    pose_goal.position.x = 0.40
-    pose_goal.position.y = -0.10
-    pose_goal.position.z = 1.55
+    pose_goal.position = cube_points[0]
     move_path(group, pose_goal, display_trajectory_publisher)
     # move_path(models, model_coordinates, p, scene, group, robot)
 
