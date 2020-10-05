@@ -32,21 +32,24 @@ def find_cube(models, model_coordinates, p, scene):
     # height = 1.4
     # remove all objects from scene (does not work)
     # scene.world.collision_objects.clear()
-    cube_points = []
+    cube_poses = []
     for model_name in model_names:
         # extract all positions
-        cube_point = model_coordinates(model_name, "").pose.position
-        cube_point.x += -0.025
-        cube_point.y += -0.025
-        cube_point.z += -0.025
-        cube_points.append(cude_point)
+        p = geometry_msgs.msg.PoseStamped()
+        p.pose.position = model_coordinates(model_name, "").pose.position
+        p.pose.position.x += -0.025
+        p.pose.position.y += -0.025
+        p.pose.position.z += -0.025
+        p.pose.orientation = model_coordinates(model_name, "").pose.orientation
+
+        cube_poses.append(p)
         # p.header.frame_id = robot.get_planning_frame()
         # p.pose.position = model_coordinates(model_name,"").pose.position
         # p.pose.position.z = height/2
         # scene.add_box(model_name, p, (0.5, 0.5, height))
-    rospy.loginfo(cube_points)
+    rospy.loginfo(cube_poses)
     # to access a position do cube_poses[0].x
-    return cube_points
+    return cube_poses
 
 
 def find_bucket(models, model_coordinates, p, scene):
