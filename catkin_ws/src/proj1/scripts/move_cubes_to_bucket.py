@@ -16,12 +16,54 @@ import moveit_msgs.msg
 from gazebo_msgs.srv import GetModelState
 from gazebo_msgs.srv import GetWorldProperties
 
+def jointStatesCallback(msg):
+    global currentJointState
+    currentJointState = msg
+
 
 def gripper_close():
+    # Setup subscriber
+    #rospy.Subscriber("/joint_states", JointState, jointStatesCallback)
+
+    pub = rospy.Publisher("/jaco/joint_control", JointState, queue_size=1)
+
+    currentJointState = rospy.wait_for_message("/joint_states", JointState)
+    rospy.loginfo('Received!')
+    currentJointState.header.stamp = rospy.get_rostime()
+    tmp = 0.7
+    #tmp_tuple=tuple([tmp] + list(currentJointState.position[1:]))
+    currentJointState.position = tuple(
+        list(currentJointState.position[:6]) + [tmp] + [tmp] + [tmp])
+    rate = rospy.Rate(10)  # 10hz
+    for i in range(3):
+        pub.publish(currentJointState)
+        rospy.loginfo('Published!')
+        rate.sleep()
+
+
     return 0
 
 
 def gripper_open():
+    # Setup subscriber
+    #rospy.Subscriber("/joint_states", JointState, jointStatesCallback)
+
+    pub = rospy.Publisher("/jaco/joint_control", JointState, queue_size=1)
+
+    currentJointState = rospy.wait_for_message("/joint_states", JointState)
+    rospy.loginfo('Received!')
+    currentJointState.header.stamp = rospy.get_rostime()
+    tmp = 0.005
+    #tmp_tuple=tuple([tmp] + list(currentJointState.position[1:]))
+    currentJointState.position = tuple(
+        list(currentJointState.position[:6]) + [tmp] + [tmp] + [tmp])
+    rate = rospy.Rate(10)  # 10hz
+    for i in range(3):
+        pub.publish(currentJointState)
+        rospy.loginfo('Published!')
+        rate.sleep()
+
+
     return 0
 
 
