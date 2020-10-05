@@ -16,6 +16,7 @@ import moveit_msgs.msg
 from gazebo_msgs.srv import GetModelState
 from gazebo_msgs.srv import GetWorldProperties
 
+
 def jointStatesCallback(msg):
     global currentJointState
     currentJointState = msg
@@ -23,51 +24,51 @@ def jointStatesCallback(msg):
 
 def gripper_close():
     # Setup subscriber
-    #rospy.Subscriber("/joint_states", JointState, jointStatesCallback)
+    # rospy.Subscriber("/joint_states", JointState, jointStatesCallback)
 
     pub = rospy.Publisher("/jaco/joint_control", JointState, queue_size=1)
 
     currentJointState = rospy.wait_for_message("/joint_states", JointState)
-    rospy.loginfo('Received!')
+    rospy.loginfo("Received!")
     currentJointState.header.stamp = rospy.get_rostime()
     tmp = 0.7
-    #tmp_tuple=tuple([tmp] + list(currentJointState.position[1:]))
+    # tmp_tuple=tuple([tmp] + list(currentJointState.position[1:]))
     currentJointState.position = tuple(
-        list(currentJointState.position[:6]) + [tmp] + [tmp] + [tmp])
+        list(currentJointState.position[:6]) + [tmp] + [tmp] + [tmp]
+    )
     rate = rospy.Rate(10)  # 10hz
     for i in range(3):
         pub.publish(currentJointState)
-        rospy.loginfo('Published!')
+        rospy.loginfo("Published!")
         rate.sleep()
-
 
     return 0
 
 
 def gripper_open():
     # Setup subscriber
-    #rospy.Subscriber("/joint_states", JointState, jointStatesCallback)
+    # rospy.Subscriber("/joint_states", JointState, jointStatesCallback)
 
     pub = rospy.Publisher("/jaco/joint_control", JointState, queue_size=1)
 
     currentJointState = rospy.wait_for_message("/joint_states", JointState)
-    rospy.loginfo('Received!')
+    rospy.loginfo("Received!")
     currentJointState.header.stamp = rospy.get_rostime()
     tmp = 0.005
-    #tmp_tuple=tuple([tmp] + list(currentJointState.position[1:]))
+    # tmp_tuple=tuple([tmp] + list(currentJointState.position[1:]))
     currentJointState.position = tuple(
-        list(currentJointState.position[:6]) + [tmp] + [tmp] + [tmp])
+        list(currentJointState.position[:6]) + [tmp] + [tmp] + [tmp]
+    )
     rate = rospy.Rate(10)  # 10hz
     for i in range(3):
         pub.publish(currentJointState)
-        rospy.loginfo('Published!')
+        rospy.loginfo("Published!")
         rate.sleep()
-
 
     return 0
 
 
-def find_cube(models, model_coordinates, p, scene):
+def find_cube(models, model_coordinates, robot, scene):
     # find all models with cube in them
     model_names = [i for i in models().model_names if "cube" in i]
 
@@ -75,19 +76,20 @@ def find_cube(models, model_coordinates, p, scene):
     # remove all objects from scene (does not work)
     # scene.world.collision_objects.clear()
     cube_poses = []
+    scene = moveit_commander.PlanningSceneInterface()
     for model_name in model_names:
         # extract all positions
         p = geometry_msgs.msg.PoseStamped()
+        p.header.frame_id = robot.get_planning_frame()
         p.pose = model_coordinates(model_name, "").pose
-        p.pose.position.x += -0.025
-        p.pose.position.y += -0.025
-        p.pose.position.z += -0.025
+        p.pose.position.x = 0.025
+        p.pose.position.y = 0.025
+        p.pose.position.z = 0.025
 
         cube_poses.append(p)
-        # p.header.frame_id = robot.get_planning_frame()
-        # p.pose.position = model_coordinates(model_name,"").pose.position
-        # p.pose.position.z = height/2
-        # scene.add_box(model_name, p, (0.5, 0.5, height))
+        scene.add_box(model_name, p, (0.5, 0.5, 0.5))
+        # rospy.loginfo(model_name)
+        # rospy.loginfo(p)
     rospy.loginfo(cube_poses)
     # to access a position do cube_poses[0].x
     return cube_poses
@@ -125,11 +127,11 @@ def move_path(group, goal_pose, display_trajectory_publisher):
     display_trajectory.trajectory_start = robot.get_current_state()
     display_trajectory.trajectory.append(plan1)
     display_trajectory_publisher.publish(display_trajectory)
-    rospy.sleep(4.0)
+    rospy.sleep(1.0)
 
     # Moving to a pose goal
     group.execute(plan1, wait=True)
-    rospy.sleep(4.0)
+    rospy.sleep(1.0)
 
     # printing current position
     rospy.loginfo(
@@ -159,12 +161,12 @@ if __name__ == "__main__":
     group.set_goal_orientation_tolerance(0.01)
     group.set_goal_tolerance(0.01)
     group.set_goal_joint_tolerance(0.01)
-    group.set_planning_time(1e3)
+    group.set_planning_time(1e1)
     group.set_num_planning_attempts(100)
 
     p = geometry_msgs.msg.PoseStamped()
 
-    pose_cubes = find_cube(models, model_coordinates, p, scene)
+    pose_cubes = find_cube(models, model_coordinates, robot, scene)
     pose_bucket = find_bucket(models, model_coordinates, p, scene)
 
     pose_goal = group.get_current_pose().pose
