@@ -76,18 +76,18 @@ def find_cube(models, model_coordinates, robot, scene):
     # remove all objects from scene (does not work)
     # scene.world.collision_objects.clear()
     cube_poses = []
-    scene = moveit_commander.PlanningSceneInterface()
+
     for model_name in model_names:
         # extract all positions
         p = geometry_msgs.msg.PoseStamped()
         p.header.frame_id = robot.get_planning_frame()
         p.pose = model_coordinates(model_name, "").pose
-        p.pose.position.x = 0.025
-        p.pose.position.y = 0.025
-        p.pose.position.z = 0.025
+        # p.pose.position.x = 0.025
+        # p.pose.position.y = 0.025
+        # p.pose.position.z = 0.025
 
         cube_poses.append(p)
-        scene.add_box(model_name, p, (0.5, 0.5, 0.5))
+        scene.add_box(model_name, p, (0.05, 0.05, 0.05))
         # rospy.loginfo(model_name)
         # rospy.loginfo(p)
     rospy.loginfo(cube_poses)
@@ -95,19 +95,36 @@ def find_cube(models, model_coordinates, robot, scene):
     return cube_poses
 
 
-def find_bucket(models, model_coordinates, p, scene):
+def find_bucket(models, model_coordinates, robot, scene):
     # Find the position of the bucket
 
     # Search of the object "bucket" in the model_states topic
     model_names = [i for i in models().model_names if "bucket" in i]
+    p = geometry_msgs.msg.PoseStamped()
+    p.header.frame_id = robot.get_planning_frame()
+    p.pose = model_coordinates(model_names[0], "").pose
+    p.pose.position.z += 0.09
+    scene.add_box(model_names[0], p, (0.22, 0.22, 0.20))
 
-    for model_name in model_names:
-        bucket_pose = model_coordinates(model_name, "").pose
+    rospy.loginfo(p)
 
-    # print(bucket_pose)
-    rospy.loginfo(bucket_pose)
+    return p.pose
 
-    return bucket_pose
+
+def add_table_scene(robot, scene):
+    # Find the position of the bucket
+
+    # Search of the object "bucket" in the model_states topic
+    p = geometry_msgs.msg.PoseStamped()
+    p.header.frame_id = robot.get_planning_frame()
+    p.pose.position.x = 0
+    p.pose.position.y = 0
+    p.pose.position.z = 0.683
+    scene.add_box("table", p, (2, 2, 0.10))
+
+    rospy.loginfo(p)
+
+    return p.pose
 
 
 # def move_path(models, model_coordinates, p, scene, group, robot):
@@ -148,15 +165,16 @@ if __name__ == "__main__":
 
     # initializing moveit related things
     moveit_commander.roscpp_initialize(sys.argv)
+    scene = moveit_commander.PlanningSceneInterface()
     robot = moveit_commander.RobotCommander()
     group = moveit_commander.MoveGroupCommander("Arm")
-    scene = moveit_commander.PlanningSceneInterface()
 
     display_trajectory_publisher = rospy.Publisher(
         "/move_group/display_planned_path",
         moveit_msgs.msg.DisplayTrajectory,
         queue_size=1e3,
     )
+    rospy.sleep(2)
 
     group.set_goal_orientation_tolerance(0.01)
     group.set_goal_tolerance(0.01)
@@ -166,8 +184,9 @@ if __name__ == "__main__":
 
     p = geometry_msgs.msg.PoseStamped()
 
+    add_table_scene(robot, scene)
     pose_cubes = find_cube(models, model_coordinates, robot, scene)
-    pose_bucket = find_bucket(models, model_coordinates, p, scene)
+    pose_bucket = find_bucket(models, model_coordinates, robot, scene)
 
     pose_goal = group.get_current_pose().pose
     pose_goal.position = pose_cubes[0].pose.position
