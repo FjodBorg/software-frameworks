@@ -13,8 +13,6 @@ import geometry_msgs
 import moveit_commander
 import moveit_msgs.msg
 
-# from moveit_ros_planning_interface import _moveit_planning_scene_interface
-
 from gazebo_msgs.srv import GetModelState
 from gazebo_msgs.srv import GetWorldProperties
 
@@ -28,22 +26,23 @@ def gripper_open():
 
 
 def find_cube(models, model_coordinates, p, scene):
-    # TODO fix example code
+    # find all models with cube in them
+    model_names = [i for i in models().model_names if "cube" in i]
 
-    # model_names = [i for i in models().model_names if "cube" in i]
-
-    # print(model_names)
     # height = 1.4
+    # remove all objects from scene (does not work)
     # scene.world.collision_objects.clear()
-    # for model_name in model_names:
-    # rospy.loginfo(model_coordinates(model_name,"").pose.position)
-    # p.header.frame_id = robot.get_planning_frame()
-    # p.pose.position = model_coordinates(model_name,"").pose.position
-    # p.pose.position.z = height/2
-    # scene.add_box(model_name, p, (0.5, 0.5, height))
-
-    cube_pos = 0
-    return cube_pos
+    cube_poses = []
+    for model_name in model_names:
+        # extract all positions
+        cube_poses.append(model_coordinates(model_name, "").pose.position)
+        # p.header.frame_id = robot.get_planning_frame()
+        # p.pose.position = model_coordinates(model_name,"").pose.position
+        # p.pose.position.z = height/2
+        # scene.add_box(model_name, p, (0.5, 0.5, height))
+    rospy.loginfo(cube_poses)
+    # to access a position do cube_poses[0].x
+    return cube_poses
 
 
 def find_bucket(models, model_coordinates, p, scene):
@@ -114,14 +113,15 @@ if __name__ == "__main__":
 
     p = geometry_msgs.msg.PoseStamped()
 
-    # find_cube(models, model_coordinates, p, scene)
-    # find_bucket(models, model_coordinates, p, scene)
-    # move_path(models, model_coordinates, p, scene, group, robot)
-    # gripper_open()
-    # gripper_close()
+    find_cube(models, model_coordinates, p, scene)
+    find_bucket(models, model_coordinates, p, scene)
 
     pose_goal = group.get_current_pose().pose
     pose_goal.position.x = 0.40
     pose_goal.position.y = -0.10
     pose_goal.position.z = 1.55
     move_path(group, pose_goal, display_trajectory_publisher)
+    # move_path(models, model_coordinates, p, scene, group, robot)
+
+    gripper_open()
+    gripper_close()
