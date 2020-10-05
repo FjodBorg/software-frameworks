@@ -1,23 +1,38 @@
 #!/usr/bin/env python
+import math
+import sys
 import rospy
 import tf
 import random
 import tf_conversions
 from gazebo_msgs.srv import DeleteModel, SpawnModel
-from geometry_msgs.msg import Point, Pose, Quaternion
+
+# from geometry_msgs.msg import Point, Pose, Quaternion
+import geometry_msgs
 
 import moveit_commander
+import moveit_msgs.msg
+
+# from moveit_ros_planning_interface import _moveit_planning_scene_interface
 
 from gazebo_msgs.srv import GetModelState
 from gazebo_msgs.srv import GetWorldProperties
 
 
+def gripper_close():
+    return 0
+
+
+def gripper_open():
+    return 0
+
+
 def find_cube(models, model_coordinates, p, scene):
     # TODO fix example code
 
-    model_names = [i for i in models().model_names if "cube" in i]
+    # model_names = [i for i in models().model_names if "cube" in i]
 
-    print(model_names)
+    # print(model_names)
     # height = 1.4
     # scene.world.collision_objects.clear()
     # for model_name in model_names:
@@ -51,14 +66,31 @@ def find_bucket(models, model_coordinates, p, scene):
 
 
 # def move_path(models, model_coordinates, p, scene, group, robot):
-def move_path(curr_pose, goal_pose):
+def move_path(group, goal_pose, display_trajectory_publisher):
+    curr_pose = group.get_current_pose().pose
     waypoints = []
+    waypoints.append(curr_pose)
+    goal_pose.orientation = geometry_msgs.msg.Quaternion(
+        *tf_conversions.transformations.quaternion_from_euler(0.0, -math.pi / 2, 0.0)
+    )
+    waypoints.append(goal_pose)
 
-    return 0
+    (plan1, _) = group.compute_cartesian_path(waypoints, 0.01, 0.0)
+    # waiting for RViz to display path
+    display_trajectory = moveit_msgs.msg.DisplayTrajectory()
+    display_trajectory.trajectory_start = robot.get_current_state()
+    display_trajectory.trajectory.append(plan1)
+    display_trajectory_publisher.publish(display_trajectory)
+    rospy.sleep(1.0)
+
+    # Moving to a pose goal
+    group.execute(plan1, wait=True)
+    rospy.sleep(5.0)
+
+    return goal_pose
 
 
 if __name__ == "__main__":
-
     rospy.init_node("move_cubes")
     models = rospy.ServiceProxy("/gazebo/get_world_properties", GetWorldProperties)
     model_coordinates = rospy.ServiceProxy("/gazebo/get_model_state", GetModelState)
@@ -70,7 +102,9 @@ if __name__ == "__main__":
     scene = moveit_commander.PlanningSceneInterface()
 
     display_trajectory_publisher = rospy.Publisher(
-        "/move_group/display_planned_path", moveit_msgs.msg.DisplayTrajectory
+        "/move_group/display_planned_path",
+        moveit_msgs.msg.DisplayTrajectory,
+        queue_size=1,
     )
 
     group.set_goal_orientation_tolerance(0.01)
@@ -80,7 +114,14 @@ if __name__ == "__main__":
 
     p = geometry_msgs.msg.PoseStamped()
 
-    find_cube(models, model_coordinates, p, scene)
-    find_bucket(models, model_coordinates, p, scene)
-    move_path(models, model_coordinates, p, scene, group, robot)
+    # find_cube(models, model_coordinates, p, scene)
+    # find_bucket(models, model_coordinates, p, scene)
+    # move_path(models, model_coordinates, p, scene, group, robot)
+    # gripper_open()
+    # gripper_close()
 
+    pose_goal = group.get_current_pose().pose
+    pose_goal.position.x = 0.40
+    pose_goal.position.y = -0.10
+    pose_goal.position.z = 1.55
+    move_path(group, pose_goal, display_trajectory_publisher)
