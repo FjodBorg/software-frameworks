@@ -9,6 +9,7 @@ from gazebo_msgs.srv import DeleteModel, SpawnModel
 from geometry_msgs.msg import *
 
 import moveit_commander
+import moveit_commander.
 import moveit_msgs.msg
 #from moveit_ros_planning_interface import _moveit_planning_scene_interface
 
@@ -26,17 +27,17 @@ def gripper_open():
 def find_cube(models, model_coordinates, p, scene):
     # TODO fix example code
     
-    #model_names = [i for i in models().model_names if "cube" in i]
+    model_names = [i for i in models().model_names if "cube" in i]
     
-    #print(model_names)
-    #height = 1.4
-    #scene.world.collision_objects.clear()
+    print(model_names)
+    height = 1.4
+    scene.collision_objects.clear()
     #for model_name in model_names:
         #rospy.loginfo(model_coordinates(model_name,"").pose.position)
         #p.header.frame_id = robot.get_planning_frame()
         #p.pose.position = model_coordinates(model_name,"").pose.position
         #p.pose.position.z = height/2
-        #scene.add_box(model_name, p, (0.5, 0.5, height))
+        scene.add_box(model_name, p, (0.5, 0.5, height))
         
     cube_pos = 0
     return cube_pos
