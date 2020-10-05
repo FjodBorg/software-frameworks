@@ -5,6 +5,6 @@
 !catkin_ws/
 catkin_ws/*
 !catkin_ws/src/
-catkin_ws/src/proj1/urdf/bucket.urdf
+/catkin_ws/src/proj1/urdf/bucket.urdf
 !.gitignore
 !READNE.md
