@@ -82,9 +82,9 @@ def find_cube(models, model_coordinates, robot, scene):
         p = geometry_msgs.msg.PoseStamped()
         p.header.frame_id = robot.get_planning_frame()
         p.pose = model_coordinates(model_name, "").pose
-        p.pose.position.x = 0.025
-        p.pose.position.y = 0.025
-        p.pose.position.z = 0.025
+        # p.pose.position.x += 0.025
+        # p.pose.position.y += 0.025
+        # p.pose.position.z += 0.025
 
         cube_poses.append(p)
         scene.add_box(model_name, p, (0.5, 0.5, 0.5))
@@ -101,8 +101,7 @@ def find_bucket(models, model_coordinates, p, scene):
     # Search of the object "bucket" in the model_states topic
     model_names = [i for i in models().model_names if "bucket" in i]
 
-    for model_name in model_names:
-        bucket_pose = model_coordinates(model_name, "").pose
+    bucket_pose = model_coordinates(model_names[0], "").pose
 
     # print(bucket_pose)
     rospy.loginfo(bucket_pose)
@@ -112,37 +111,129 @@ def find_bucket(models, model_coordinates, p, scene):
 
 # def move_path(models, model_coordinates, p, scene, group, robot):
 def move_path(group, goal_pose, display_trajectory_publisher):
-    rospy.loginfo("Moving to...\n{}".format(goal_pose.position))
     curr_pose = group.get_current_pose().pose
+    rospy.loginfo("Initial pose...\n{}".format(curr_pose.position))
+    rospy.loginfo("Goal pose...\n{}".format(goal_pose.position))
+
     waypoints = []
     waypoints.append(curr_pose)
-    inter_pose = goal_pose
-    inter_pose.position.pose.z = 1.25
-    waypoints.append(inter_pose)
 
-    goal_pose.orientation = geometry_msgs.msg.Quaternion(
+    curr_pose.orientation = geometry_msgs.msg.Quaternion(
         *tf_conversions.transformations.quaternion_from_euler(0.0, -math.pi / 2, 0.0)
     )
+    waypoints.append(curr_pose)
+
+    # inter_pose = goal_pose
+    # inter_pose.position.z += 0.5
+    # waypoints.append(inter_pose)
+
+    move_a2b(group, waypoints, display_trajectory_publisher)
+
+    waypoints = []
+    curr_pose = group.get_current_pose().pose
+    waypoints.append(curr_pose)
+
+    inter_pose = goal_pose
+    inter_pose.position.z += 0.5
+    inter_pose.orientation = curr_pose.orientation
+    waypoints.append(inter_pose)
+    # inter_pose.orientation = geometry_msgs.msg.Quaternion(
+    #     *tf_conversions.transformations.quaternion_from_euler(0.0, -math.pi / 2, 0.0)
+    # )
+    waypoints.append(inter_pose)
+    move_a2b(group, waypoints, display_trajectory_publisher)
+
+    waypoints = []
+    curr_pose = group.get_current_pose().pose
+    curr_pose.orientation = inter_pose.orientation
+    waypoints.append(curr_pose)
+
+    goal_pose.orientation = inter_pose.orientation
     waypoints.append(goal_pose)
-
-    (plan1, _) = group.compute_cartesian_path(waypoints, 0.01, 0.0)
-    # waiting for RViz to display path
-    display_trajectory = moveit_msgs.msg.DisplayTrajectory()
-    display_trajectory.trajectory_start = robot.get_current_state()
-    display_trajectory.trajectory.append(plan1)
-    display_trajectory_publisher.publish(display_trajectory)
-    rospy.sleep(1.0)
-
-    # Moving to a pose goal
-    group.execute(plan1, wait=True)
-    rospy.sleep(1.0)
+    move_a2b(group, waypoints, display_trajectory_publisher)
 
     # printing current position
     rospy.loginfo(
         "Current position...\n{}".format(group.get_current_pose().pose.position)
     )
 
-    return goal_pose
+
+def move_a2b(group, waypoints, display_trajectory_publisher):
+    (plan1, _) = group.compute_cartesian_path(waypoints, 0.01, 0.0)
+    # rospy.sleep(2.0)
+    # waiting for RViz to display path
+    display_trajectory = moveit_msgs.msg.DisplayTrajectory()
+    display_trajectory.trajectory_start = robot.get_current_state()
+    display_trajectory.trajectory.append(plan1)
+    display_trajectory_publisher.publish(display_trajectory)
+    rospy.sleep(2.0)
+
+    # Moving to a pose goal
+    group.execute(plan1, wait=True)
+    rospy.sleep(2.0)
+
+
+# def move_path(group, goal_pose, display_trajectory_publisher):
+#     curr_pose = group.get_current_pose().pose
+#     rospy.loginfo("Current pose...\n{}".format(curr_pose.position))
+#     rospy.loginfo("Goal pose...\n{}".format(goal_pose.position))
+
+#     waypoints = []
+#     waypoints.append(curr_pose)
+#     inter_pose = goal_pose
+#     inter_pose.position.z += 0.5
+#     # inter_pose.orientation = geometry_msgs.msg.Quaternion(
+#     #     *tf_conversions.transformations.quaternion_from_euler(0.0, -math.pi / 2, 0.0)
+#     # )
+#     waypoints.append(inter_pose)
+
+#     inter_pose.orientation = geometry_msgs.msg.Quaternion(
+#         *tf_conversions.transformations.quaternion_from_euler(0.0, -math.pi / 2, 0.0)
+#     )
+#     waypoints.append(inter_pose)
+
+#     (plan1, _) = group.compute_cartesian_path(waypoints, 0.01, 0.0)
+#     rospy.sleep(0.5)
+#     # waiting for RViz to display path
+#     display_trajectory = moveit_msgs.msg.DisplayTrajectory()
+#     display_trajectory.trajectory_start = robot.get_current_state()
+#     display_trajectory.trajectory.append(plan1)
+#     display_trajectory_publisher.publish(display_trajectory)
+#     rospy.sleep(1.0)
+
+#     # Moving to a pose goal
+#     group.execute(plan1, wait=True)
+#     rospy.sleep(1.0)
+
+#     waypoints = []
+#     curr_pose = group.get_current_pose().pose
+#     waypoints.append(curr_pose)
+
+#     goal_pose.position.z += 0.25
+#     goal_pose.orientation = geometry_msgs.msg.Quaternion(
+#         *tf_conversions.transformations.quaternion_from_euler(0.0, -math.pi / 2, 0.0)
+#     )
+#     waypoints.append(goal_pose)
+
+#     (plan2, _) = group.compute_cartesian_path(waypoints, 0.01, 0.0)
+#     rospy.sleep(0.5)
+#     # waiting for RViz to display path
+#     display_trajectory = moveit_msgs.msg.DisplayTrajectory()
+#     display_trajectory.trajectory_start = robot.get_current_state()
+#     display_trajectory.trajectory.append(plan2)
+#     display_trajectory_publisher.publish(display_trajectory)
+#     rospy.sleep(1.0)
+
+#     # Moving to a pose goal
+#     group.execute(plan2, wait=True)
+#     rospy.sleep(1.0)
+
+#     # printing current position
+#     rospy.loginfo(
+#         "Current position...\n{}".format(group.get_current_pose().pose.position)
+#     )
+
+#         return goal_pose
 
 
 if __name__ == "__main__":
@@ -165,8 +256,7 @@ if __name__ == "__main__":
     group.set_goal_orientation_tolerance(0.01)
     group.set_goal_tolerance(0.01)
     group.set_goal_joint_tolerance(0.01)
-    group.set_planning_time(1e1)
-    group.set_num_planning_attempts(100)
+    group.set_planning_time(1e3)
 
     p = geometry_msgs.msg.PoseStamped()
 
@@ -175,9 +265,6 @@ if __name__ == "__main__":
 
     pose_goal = group.get_current_pose().pose
     pose_goal.position = pose_cubes[0].pose.position
-    # pose_goal.position.x = 0.40
-    # pose_goal.position.y = -0.10
-    # pose_goal.position.z = 1.2
     move_path(group, pose_goal, display_trajectory_publisher)
     # move_path(models, model_coordinates, p, scene, group, robot)
     # pose_goal.position = pose_bucket.position
