@@ -57,7 +57,7 @@ def find_bucket(models, model_coordinates, p, scene):
 
     bucket_pose = []
     for model_name in model_names:
-        bucket_pose.append(model_coordinates(model_name, "").pose.position)
+        bucket_pose.append(model_coordinates(model_name, "").pose)
 
     # print(bucket_pose)
     rospy.loginfo(bucket_pose)
@@ -115,15 +115,15 @@ if __name__ == "__main__":
 
     p = geometry_msgs.msg.PoseStamped()
 
-    point_cubes = find_cube(models, model_coordinates, p, scene)
-    point_bucket = find_bucket(models, model_coordinates, p, scene)
+    pose_cubes = find_cube(models, model_coordinates, p, scene)
+    pose_bucket = find_bucket(models, model_coordinates, p, scene)
 
     pose_goal = group.get_current_pose().pose
-    pose_goal.position = point_cubes[0]
+    pose_goal.position = pose_cubes[0].position
     move_path(group, pose_goal, display_trajectory_publisher)
     # move_path(models, model_coordinates, p, scene, group, robot)
-    pose_goal.position = point_bucket.position
+    pose_goal.position = pose_bucket.position
     move_path(group, pose_goal, display_trajectory_publisher)
 
-    gripper_open()
-    gripper_close()
+    # gripper_open()
+    # gripper_close()
