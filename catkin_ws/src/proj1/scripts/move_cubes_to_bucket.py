@@ -39,7 +39,7 @@ def find_cube(models, model_coordinates, p, scene):
         cube_point.x += -0.025
         cube_point.y += -0.025
         cube_point.z += -0.025
-        cube_points.append(cude_point)
+        cube_points.append(cube_point)
         # p.header.frame_id = robot.get_planning_frame()
         # p.pose.position = model_coordinates(model_name,"").pose.position
         # p.pose.position.z = height/2
@@ -70,6 +70,7 @@ def find_bucket(models, model_coordinates, p, scene):
 
 # def move_path(models, model_coordinates, p, scene, group, robot):
 def move_path(group, goal_pose, display_trajectory_publisher):
+    rospy.loginfo("Moving to {}".format(goal_pose.position))
     curr_pose = group.get_current_pose().pose
     waypoints = []
     waypoints.append(curr_pose)
@@ -88,7 +89,7 @@ def move_path(group, goal_pose, display_trajectory_publisher):
 
     # Moving to a pose goal
     group.execute(plan1, wait=True)
-    rospy.sleep(5.0)
+    rospy.loginfo("motion complete")
 
     return goal_pose
 
@@ -121,11 +122,11 @@ if __name__ == "__main__":
     point_bucket = find_bucket(models, model_coordinates, p, scene)
 
     pose_goal = group.get_current_pose().pose
-    pose_goal.position = point_cubes[0].position
+    pose_goal.position = point_cubes[0]
     move_path(group, pose_goal, display_trajectory_publisher)
     # move_path(models, model_coordinates, p, scene, group, robot)
-    pose_goal.position = point_bucket.position
-    move_path(group, pose_goal, display_trajectory_publisher)
+    # pose_goal.position = point_bucket.position
+    # move_path(group, pose_goal, display_trajectory_publisher)
 
     gripper_open()
     gripper_close()
