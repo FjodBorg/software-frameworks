@@ -50,22 +50,19 @@ def find_cube(models, model_coordinates, p, scene):
 
 
 def find_bucket(models, model_coordinates, p, scene):
+    # Find the position of the bucket
 
-    # TODO fix example code
+    # Search of the object "bucket" in the model_states topic
+    model_names = [i for i in models().model_names if "bucket" in i]
+    
+    bucket_pose = []
+    for model_name in model_names:
+        bucket_pose.append(model_coordinates(model_name, "").pose.position)
 
-    # model_names = [i for i in models().model_names if "bucket" in i]
+    print(bucket_pose)
+    rospy.loginfo(bucket_pose)
 
-    # height = 1.4
-    # scene.world.collision_objects.clear()
-    # for model_name in model_names:
-    # rospy.loginfo(model_coordinates(model_name,"").pose.position)
-    # p.header.frame_id = robot.get_planning_frame()
-    # p.pose.position = model_coordinates(model_name,"").pose.position
-    # p.pose.position.z = height/2
-    # scene.add_box(model_name, p, (0.5, 0.5, height))
-
-    bucket_pos = 0
-    return bucket_pos
+    return bucket_pose
 
 
 # def move_path(models, model_coordinates, p, scene, group, robot):
