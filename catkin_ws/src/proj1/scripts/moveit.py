@@ -15,7 +15,7 @@ roslib.load_manifest("proj1")
 def move_group_python_interface_tutorial():
     # BEGIN_TUTORIAL
     # First initialize moveit_commander and rospy.
-    print ("============ Starting tutorial setup")
+    rospy.loginfo("============ Starting tutorial setup")
     moveit_commander.roscpp_initialize(sys.argv)
     rospy.init_node("move_group_python_interface_tutorial", anonymous=True)
     scene = moveit_commander.PlanningSceneInterface()
@@ -42,23 +42,23 @@ def move_group_python_interface_tutorial():
     # ^^^^^^^^^^^^^^^^^^^^^^^^^
     ##
     # We can get the name of the reference frame for this robot
-    print "============ Reference frame: %s" % group.get_planning_frame()
+    rospy.loginfo("============ Reference frame: %s", group.get_planning_frame())
 
     # We can also print the name of the end-effector link for this group
-    print "============ Reference frame: %s" % group.get_end_effector_link()
+    rospy.loginfo("============ Reference frame: %s", group.get_end_effector_link())
 
     # We can get a list of all the groups in the robot
-    print "============ Robot Groups:"
-    print robot.get_group_names()
+    rospy.loginfo("============ Robot Groups:")
+    rospy.loginfo(robot.get_group_names())
 
     # Sometimes for debugging it is useful to print the entire state of the
     # robot.
-    print "============ Printing robot state"
-    print robot.get_current_state()
-    print "============"
+    rospy.loginfo("============ Printing robot state")
+    rospy.loginfo(robot.get_current_state())
+    rospy.loginfo("============")
     # rospy.sleep(2)
 
-    print "============ Generating plan "
+    rospy.loginfo("============ Generating plan ")
     group.set_joint_value_target([-0.5, -0.5, 0.0, 0.0, 0.0, 0.0])
 
     # Let's setup the planner
@@ -112,7 +112,7 @@ def move_group_python_interface_tutorial():
 
     # END_TUTORIAL
 
-    print "============ STOPPING"
+    rospy.loginfo("============ STOPPING")
 
     R = rospy.Rate(10)
     while not rospy.is_shutdown():
