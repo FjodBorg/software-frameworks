@@ -32,21 +32,23 @@ def find_cube(models, model_coordinates, p, scene):
     # height = 1.4
     # remove all objects from scene (does not work)
     # scene.world.collision_objects.clear()
-    cube_points = []
+    cube_poses = []
     for model_name in model_names:
         # extract all positions
-        cube_point = model_coordinates(model_name, "").pose.position
-        cube_point.x += -0.025
-        cube_point.y += -0.025
-        cube_point.z += -0.025
-        cube_points.append(cube_point)
+        p = geometry_msgs.msg.PoseStamped()
+        p.pose = model_coordinates(model_name, "").pose
+        p.pose.position.x += -0.025
+        p.pose.position.y += -0.025
+        p.pose.position.z += -0.025
+
+        cube_poses.append(p)
         # p.header.frame_id = robot.get_planning_frame()
         # p.pose.position = model_coordinates(model_name,"").pose.position
         # p.pose.position.z = height/2
         # scene.add_box(model_name, p, (0.5, 0.5, height))
-    rospy.loginfo(cube_points)
+    rospy.loginfo(cube_poses)
     # to access a position do cube_poses[0].x
-    return cube_points
+    return cube_poses
 
 
 def find_bucket(models, model_coordinates, p, scene):
@@ -55,9 +57,8 @@ def find_bucket(models, model_coordinates, p, scene):
     # Search of the object "bucket" in the model_states topic
     model_names = [i for i in models().model_names if "bucket" in i]
 
-    bucket_pose = []
     for model_name in model_names:
-        bucket_pose.append(model_coordinates(model_name, "").pose)
+        bucket_pose = model_coordinates(model_name, "").pose
 
     # print(bucket_pose)
     rospy.loginfo(bucket_pose)
@@ -67,7 +68,7 @@ def find_bucket(models, model_coordinates, p, scene):
 
 # def move_path(models, model_coordinates, p, scene, group, robot):
 def move_path(group, goal_pose, display_trajectory_publisher):
-    rospy.loginfo("Moving to {}".format(goal_pose.position))
+    rospy.loginfo("Moving to...\n{}".format(goal_pose.position))
     curr_pose = group.get_current_pose().pose
     waypoints = []
     waypoints.append(curr_pose)
@@ -82,11 +83,16 @@ def move_path(group, goal_pose, display_trajectory_publisher):
     display_trajectory.trajectory_start = robot.get_current_state()
     display_trajectory.trajectory.append(plan1)
     display_trajectory_publisher.publish(display_trajectory)
-    rospy.sleep(1.0)
+    rospy.sleep(4.0)
 
     # Moving to a pose goal
     group.execute(plan1, wait=True)
-    rospy.loginfo("motion complete")
+    rospy.sleep(4.0)
+
+    # printing current position
+    rospy.loginfo(
+        "Current position...\n{}".format(group.get_current_pose().pose.position)
+    )
 
     return goal_pose
 
@@ -105,13 +111,14 @@ if __name__ == "__main__":
     display_trajectory_publisher = rospy.Publisher(
         "/move_group/display_planned_path",
         moveit_msgs.msg.DisplayTrajectory,
-        queue_size=1,
+        queue_size=1e3,
     )
 
     group.set_goal_orientation_tolerance(0.01)
     group.set_goal_tolerance(0.01)
     group.set_goal_joint_tolerance(0.01)
-    group.set_planning_time(360)
+    group.set_planning_time(1e3)
+    group.set_num_planning_attempts(100)
 
     p = geometry_msgs.msg.PoseStamped()
 
@@ -119,7 +126,7 @@ if __name__ == "__main__":
     pose_bucket = find_bucket(models, model_coordinates, p, scene)
 
     pose_goal = group.get_current_pose().pose
-    pose_goal.position = pose_cubes[0].position
+    pose_goal.position = pose_cubes[0].pose.position
     move_path(group, pose_goal, display_trajectory_publisher)
     # move_path(models, model_coordinates, p, scene, group, robot)
     pose_goal.position = pose_bucket.position
