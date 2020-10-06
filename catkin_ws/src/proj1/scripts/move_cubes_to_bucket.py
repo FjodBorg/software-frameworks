@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import copy
 import math
 import sys
 import rospy
@@ -76,18 +77,15 @@ def find_cube(models, model_coordinates, robot, scene):
     # remove all objects from scene (does not work)
     # scene.world.collision_objects.clear()
     cube_poses = []
-    scene = moveit_commander.PlanningSceneInterface()
+
     for model_name in model_names:
         # extract all positions
         p = geometry_msgs.msg.PoseStamped()
         p.header.frame_id = robot.get_planning_frame()
         p.pose = model_coordinates(model_name, "").pose
-        # p.pose.position.x += 0.025
-        # p.pose.position.y += 0.025
-        # p.pose.position.z += 0.025
 
         cube_poses.append(p)
-        scene.add_box(model_name, p, (0.5, 0.5, 0.5))
+        # scene.add_box(model_name, p, (0.05, 0.05, 0.05))
         # rospy.loginfo(model_name)
         # rospy.loginfo(p)
     rospy.loginfo(cube_poses)
@@ -95,70 +93,94 @@ def find_cube(models, model_coordinates, robot, scene):
     return cube_poses
 
 
-def find_bucket(models, model_coordinates, p, scene):
+def find_bucket(models, model_coordinates, robot, scene):
     # Find the position of the bucket
 
     # Search of the object "bucket" in the model_states topic
     model_names = [i for i in models().model_names if "bucket" in i]
+    p = geometry_msgs.msg.PoseStamped()
+    p.header.frame_id = robot.get_planning_frame()
+    p.pose = model_coordinates(model_names[0], "").pose
+    p.pose.position.z += 0.09
+    scene.add_box(model_names[0], p, (0.22, 0.22, 0.20))
 
-    bucket_pose = model_coordinates(model_names[0], "").pose
+    return p.pose
 
-    # print(bucket_pose)
-    rospy.loginfo(bucket_pose)
 
-    return bucket_pose
+def add_table_scene(robot, scene):
+    # Find the position of the bucket
+
+    # Search of the object "bucket" in the model_states topic
+    p = geometry_msgs.msg.PoseStamped()
+    p.header.frame_id = robot.get_planning_frame()
+    p.pose.position.x = 0
+    p.pose.position.y = 0
+    p.pose.position.z = 0.683
+    scene.add_box("table", p, (2, 2, 0.10))
+
+    rospy.loginfo(p)
+
+    return p.pose
 
 
 # def move_path(models, model_coordinates, p, scene, group, robot):
-def move_path(group, goal_pose, display_trajectory_publisher):
+def move_path(
+    group, goal_pose, display_trajectory_publisher, vert_approach=True, vert_offset=0.25
+):
     curr_pose = group.get_current_pose().pose
     rospy.loginfo("Initial pose...\n{}".format(curr_pose.position))
-    rospy.loginfo("Goal pose...\n{}".format(goal_pose.position))
 
     waypoints = []
     waypoints.append(curr_pose)
 
-    curr_pose.orientation = geometry_msgs.msg.Quaternion(
-        *tf_conversions.transformations.quaternion_from_euler(0.0, -math.pi / 2, 0.0)
-    )
-    waypoints.append(curr_pose)
-
-    # inter_pose = goal_pose
-    # inter_pose.position.z += 0.5
-    # waypoints.append(inter_pose)
-
-    move_a2b(group, waypoints, display_trajectory_publisher)
-
-    waypoints = []
-    curr_pose = group.get_current_pose().pose
-    waypoints.append(curr_pose)
-
-    inter_pose = goal_pose
-    inter_pose.position.z += 0.5
-    inter_pose.orientation = curr_pose.orientation
-    waypoints.append(inter_pose)
-    # inter_pose.orientation = geometry_msgs.msg.Quaternion(
+    # curr_pose.orientation = geometry_msgs.msg.Quaternion(
     #     *tf_conversions.transformations.quaternion_from_euler(0.0, -math.pi / 2, 0.0)
     # )
+    curr_pose.orientation = goal_pose.orientation
+    waypoints.append(curr_pose)
+    move_a2b(group, waypoints, display_trajectory_publisher)
+
+    # movin to vert_offset m above
+    waypoints = []
+    curr_pose = group.get_current_pose().pose
+    waypoints.append(curr_pose)
+    inter_pose = copy.deepcopy(goal_pose)
+    inter_pose.position.z += vert_offset
     waypoints.append(inter_pose)
     move_a2b(group, waypoints, display_trajectory_publisher)
 
-    waypoints = []
-    curr_pose = group.get_current_pose().pose
-    curr_pose.orientation = inter_pose.orientation
-    waypoints.append(curr_pose)
+    # dipping down for cubes
+    if vert_approach:
+        waypoints = []
+        curr_pose = group.get_current_pose().pose
+        waypoints.append(curr_pose)
+        waypoints.append(goal_pose)
+        move_a2b(group, waypoints, display_trajectory_publisher)
 
-    goal_pose.orientation = inter_pose.orientation
-    waypoints.append(goal_pose)
-    move_a2b(group, waypoints, display_trajectory_publisher)
+        # gripper_close()
 
-    # printing current position
+        # resetting above to avoid collisions
+        waypoints = []
+        curr_pose = group.get_current_pose().pose
+        waypoints.append(curr_pose)
+        waypoints.append(inter_pose)
+        move_a2b(group, waypoints, display_trajectory_publisher)
+    else:
+        pass
+        # gripper_open()
+
+    # printing final position
     rospy.loginfo(
-        "Current position...\n{}".format(group.get_current_pose().pose.position)
+        "Final position...\n{}".format(group.get_current_pose().pose.position)
     )
 
 
 def move_a2b(group, waypoints, display_trajectory_publisher):
+    rospy.loginfo(
+        "Moving from...\n{}\nto...\n{}".format(
+            waypoints[0].position, waypoints[-1].position
+        )
+    )
     (plan1, _) = group.compute_cartesian_path(waypoints, 0.01, 0.0)
     # rospy.sleep(2.0)
     # waiting for RViz to display path
@@ -166,74 +188,11 @@ def move_a2b(group, waypoints, display_trajectory_publisher):
     display_trajectory.trajectory_start = robot.get_current_state()
     display_trajectory.trajectory.append(plan1)
     display_trajectory_publisher.publish(display_trajectory)
-    rospy.sleep(2.0)
+    rospy.sleep(1.0)
 
     # Moving to a pose goal
     group.execute(plan1, wait=True)
-    rospy.sleep(2.0)
-
-
-# def move_path(group, goal_pose, display_trajectory_publisher):
-#     curr_pose = group.get_current_pose().pose
-#     rospy.loginfo("Current pose...\n{}".format(curr_pose.position))
-#     rospy.loginfo("Goal pose...\n{}".format(goal_pose.position))
-
-#     waypoints = []
-#     waypoints.append(curr_pose)
-#     inter_pose = goal_pose
-#     inter_pose.position.z += 0.5
-#     # inter_pose.orientation = geometry_msgs.msg.Quaternion(
-#     #     *tf_conversions.transformations.quaternion_from_euler(0.0, -math.pi / 2, 0.0)
-#     # )
-#     waypoints.append(inter_pose)
-
-#     inter_pose.orientation = geometry_msgs.msg.Quaternion(
-#         *tf_conversions.transformations.quaternion_from_euler(0.0, -math.pi / 2, 0.0)
-#     )
-#     waypoints.append(inter_pose)
-
-#     (plan1, _) = group.compute_cartesian_path(waypoints, 0.01, 0.0)
-#     rospy.sleep(0.5)
-#     # waiting for RViz to display path
-#     display_trajectory = moveit_msgs.msg.DisplayTrajectory()
-#     display_trajectory.trajectory_start = robot.get_current_state()
-#     display_trajectory.trajectory.append(plan1)
-#     display_trajectory_publisher.publish(display_trajectory)
-#     rospy.sleep(1.0)
-
-#     # Moving to a pose goal
-#     group.execute(plan1, wait=True)
-#     rospy.sleep(1.0)
-
-#     waypoints = []
-#     curr_pose = group.get_current_pose().pose
-#     waypoints.append(curr_pose)
-
-#     goal_pose.position.z += 0.25
-#     goal_pose.orientation = geometry_msgs.msg.Quaternion(
-#         *tf_conversions.transformations.quaternion_from_euler(0.0, -math.pi / 2, 0.0)
-#     )
-#     waypoints.append(goal_pose)
-
-#     (plan2, _) = group.compute_cartesian_path(waypoints, 0.01, 0.0)
-#     rospy.sleep(0.5)
-#     # waiting for RViz to display path
-#     display_trajectory = moveit_msgs.msg.DisplayTrajectory()
-#     display_trajectory.trajectory_start = robot.get_current_state()
-#     display_trajectory.trajectory.append(plan2)
-#     display_trajectory_publisher.publish(display_trajectory)
-#     rospy.sleep(1.0)
-
-#     # Moving to a pose goal
-#     group.execute(plan2, wait=True)
-#     rospy.sleep(1.0)
-
-#     # printing current position
-#     rospy.loginfo(
-#         "Current position...\n{}".format(group.get_current_pose().pose.position)
-#     )
-
-#         return goal_pose
+    rospy.sleep(0.1)
 
 
 if __name__ == "__main__":
@@ -243,15 +202,16 @@ if __name__ == "__main__":
 
     # initializing moveit related things
     moveit_commander.roscpp_initialize(sys.argv)
+    scene = moveit_commander.PlanningSceneInterface()
     robot = moveit_commander.RobotCommander()
     group = moveit_commander.MoveGroupCommander("Arm")
-    scene = moveit_commander.PlanningSceneInterface()
 
     display_trajectory_publisher = rospy.Publisher(
         "/move_group/display_planned_path",
         moveit_msgs.msg.DisplayTrajectory,
         queue_size=1e3,
     )
+    rospy.sleep(2)
 
     group.set_goal_orientation_tolerance(0.01)
     group.set_goal_tolerance(0.01)
@@ -260,15 +220,27 @@ if __name__ == "__main__":
 
     p = geometry_msgs.msg.PoseStamped()
 
+    add_table_scene(robot, scene)
     pose_cubes = find_cube(models, model_coordinates, robot, scene)
-    pose_bucket = find_bucket(models, model_coordinates, p, scene)
+    pose_bucket = find_bucket(models, model_coordinates, robot, scene)
 
+    # motion commands for a single cube-pickup and dropoff
+    # should repeat for cube in pose_cubes
     pose_goal = group.get_current_pose().pose
-    pose_goal.position = pose_cubes[0].pose.position
-    move_path(group, pose_goal, display_trajectory_publisher)
-    # move_path(models, model_coordinates, p, scene, group, robot)
-    # pose_goal.position = pose_bucket.position
-    # move_path(group, pose_goal, display_trajectory_publisher)
+    pose_goal.orientation = geometry_msgs.msg.Quaternion(
+        *tf_conversions.transformations.quaternion_from_euler(0.0, -math.pi / 2, 0.0)
+    )
+    for cube in pose_cubes:
+        # goto cube
+        pose_goal.position = copy.deepcopy(cube.pose.position)
+        move_path(group, pose_goal, display_trajectory_publisher)
+        # goto bucket
+        pose_goal.position = copy.deepcopy(pose_bucket.position)
+        move_path(
+            group,
+            pose_goal,
+            display_trajectory_publisher,
+            vert_approach=False,
+            vert_offset=0.5,
+        )
 
-    # gripper_open()
-    # gripper_close()
