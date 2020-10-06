@@ -7,6 +7,7 @@ import tf
 import random
 import tf_conversions
 from gazebo_msgs.srv import DeleteModel, SpawnModel
+from sensor_msgs.msg import JointState
 
 # from geometry_msgs.msg import Point, Pose, Quaternion
 import geometry_msgs
