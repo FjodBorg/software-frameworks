@@ -33,7 +33,7 @@ def gripper_close():
     currentJointState = rospy.wait_for_message("/joint_states", JointState)
     rospy.loginfo("Received!")
     currentJointState.header.stamp = rospy.get_rostime()
-    tmp = 0.7
+    tmp = 0.75
     # tmp_tuple=tuple([tmp] + list(currentJointState.position[1:]))
     currentJointState.position = tuple(
         list(currentJointState.position[:6]) + [tmp] + [tmp] + [tmp]
@@ -84,6 +84,7 @@ def find_cube(models, model_coordinates, robot, scene):
         p = geometry_msgs.msg.PoseStamped()
         p.header.frame_id = robot.get_planning_frame()
         p.pose = model_coordinates(model_name, "").pose
+        p.pose.position.z += 0.17
 
         cube_poses.append(p)
         # scene.add_box(model_name, p, (0.05, 0.05, 0.05))
@@ -128,15 +129,13 @@ def add_table_scene(robot, scene):
 def move_path(
     group, goal_pose, display_trajectory_publisher, vert_approach=True, vert_offset=0.25
 ):
+    rospy.sleep(0.2)
     curr_pose = group.get_current_pose().pose
     rospy.loginfo("Initial pose...\n{}".format(curr_pose.position))
 
     waypoints = []
     waypoints.append(curr_pose)
 
-    # curr_pose.orientation = geometry_msgs.msg.Quaternion(
-    #     *tf_conversions.transformations.quaternion_from_euler(0.0, -math.pi / 2, 0.0)
-    # )
     curr_pose.orientation = goal_pose.orientation
     waypoints.append(curr_pose)
     move_a2b(group, waypoints, display_trajectory_publisher)
@@ -158,7 +157,8 @@ def move_path(
         waypoints.append(goal_pose)
         move_a2b(group, waypoints, display_trajectory_publisher)
 
-        # gripper_close()
+        gripper_close()
+        rospy.sleep(0.5)
 
         # resetting above to avoid collisions
         waypoints = []
@@ -167,8 +167,8 @@ def move_path(
         waypoints.append(inter_pose)
         move_a2b(group, waypoints, display_trajectory_publisher)
     else:
-        pass
-        # gripper_open()
+        gripper_open()
+        rospy.sleep(0.5)
 
     # printing final position
     rospy.loginfo(
@@ -193,7 +193,7 @@ def move_a2b(group, waypoints, display_trajectory_publisher):
 
     # Moving to a pose goal
     group.execute(plan1, wait=True)
-    rospy.sleep(0.1)
+    rospy.sleep(0.5)
 
 
 if __name__ == "__main__":
@@ -221,7 +221,7 @@ if __name__ == "__main__":
 
     p = geometry_msgs.msg.PoseStamped()
 
-    add_table_scene(robot, scene)
+    # add_table_scene(robot, scene)
     pose_cubes = find_cube(models, model_coordinates, robot, scene)
     pose_bucket = find_bucket(models, model_coordinates, robot, scene)
 
@@ -229,13 +229,25 @@ if __name__ == "__main__":
     # should repeat for cube in pose_cubes
     pose_goal = group.get_current_pose().pose
     pose_goal.orientation = geometry_msgs.msg.Quaternion(
-        *tf_conversions.transformations.quaternion_from_euler(0.0, -math.pi / 2, 0.0)
+        *tf_conversions.transformations.quaternion_from_euler(
+            0.0, -math.pi / 2, -math.pi / 4
+        )
     )
+
+    gripper_open()
     for cube in pose_cubes:
         # goto cube
+        rospy.loginfo("Going to cube...")
         pose_goal.position = copy.deepcopy(cube.pose.position)
-        move_path(group, pose_goal, display_trajectory_publisher)
+        move_path(
+            group,
+            pose_goal,
+            display_trajectory_publisher,
+            vert_approach=True,
+            vert_offset=0.5,
+        )
         # goto bucket
+        rospy.loginfo("Going to bucket...")
         pose_goal.position = copy.deepcopy(pose_bucket.position)
         move_path(
             group,
