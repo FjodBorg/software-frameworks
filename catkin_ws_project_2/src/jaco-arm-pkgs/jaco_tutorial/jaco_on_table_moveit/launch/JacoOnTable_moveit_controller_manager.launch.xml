@@ -1,4 +1,0 @@
-<launch>
-    <include file="$(find jaco_moveit)/launch/jaco_moveit_simple_controller_manager.launch"/>
-    <!--include file="$(find jaco_moveit)/launch/jaco_moveit_multidof_controller_manager.launch"/-->
-</launch>
