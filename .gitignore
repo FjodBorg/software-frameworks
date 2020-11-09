@@ -2,9 +2,13 @@
 /*/
 
 # Except for these directories:
-!catkin_ws/
-catkin_ws/*
-!catkin_ws/src/
-/catkin_ws/src/proj1/urdf/bucket.urdf
+!catkin_ws_project_1/
+catkin_ws_project_1/*
+!catkin_ws_project_1/src/
+/catkin_ws_project_1/src/proj1/urdf/bucket.urdf
+
+!catkin_ws_project_2/
+catkin_ws_project_2/*
+!catkin_ws_project_2/src/
 !.gitignore
 !READNE.md
