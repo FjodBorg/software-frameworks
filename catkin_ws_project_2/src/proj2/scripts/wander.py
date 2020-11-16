@@ -31,7 +31,7 @@ rate = rospy.Rate(60)
 rospy.on_shutdown(shutdown_callback)
 
 while not rospy.is_shutdown():
-    print(g_range_ahead)
+    rospy.loginfo(g_range_ahead)
     if g_range_ahead < 0.8:
         # TURN
         driving_forward = False
