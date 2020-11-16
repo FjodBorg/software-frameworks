@@ -1,5 +1,5 @@
 <launch>
-	<arg name="headless" default="true"/>
+	<arg name="headless" default="false"/>
 	<arg name="gui" default="false"/>
 	<include file="$(find final_project)/launch/turtlebot3_world.launch">
 		<arg name="headless" value="$(arg headless)"/>
