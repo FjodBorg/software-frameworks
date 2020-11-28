@@ -132,7 +132,7 @@ stop_driving = False
 rob_curr_world = Pose()
 
 # # init actionlib client
-# client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
+client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
 # client.wait_for_server()
 
 # init tf transforms
@@ -174,7 +174,7 @@ while not rospy.is_shutdown():
             # rospy.loginfo("a{}\t b{}\t theta{}".format(a, b, theta))
             hidden_in_world = np.subtract(p1w, np.dot(rotz(theta), p1h))
             rospy.loginfo(
-                "Transformation from [w] to [h]\t angle:{:.2f}\t position:{:.2f}".format(
+                "Transformation from [w] to [h]\t angle:{0:.2f}\t position:{1:.2f}".format(
                     theta * 180 / np.pi, hidden_in_world
                 )
             )
@@ -182,7 +182,13 @@ while not rospy.is_shutdown():
             t = Twist()
             cmd_vel_pub.publish(t)
     else:
-        pass
-        # move_to_next(qr_next, cmd_vel_pub)
-
-    rate.sleep()
+        rospy.loginfo("Starting phase 2")
+        keys = list(qr_dict.keys())
+        for key in keys:
+            next_idx = qr_dict[key]["next"]
+            if next_idx not in qr_dict:
+                # move to next qr given by next
+                rospy.loginfo("Going to QR {}".format())
+                """ to do"""
+                """ calculat transformation"""
+                """send action client to new coordiante"""
