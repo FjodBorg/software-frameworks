@@ -26,7 +26,7 @@
 	<include file="$(find final_project)/launch/qr_visp.launch"/>
 	
 	
-    <include file="$(find proj2)/launch/base_move.launch.xml">
+    <include file="$(find proj2)/launch/base_move.launch">
         <arg name="model" value="$(arg model)" />
         <arg name="move_forward_only" value="$(arg move_forward_only)"/>
     </include>
