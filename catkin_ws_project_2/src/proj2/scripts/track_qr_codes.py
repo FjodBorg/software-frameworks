@@ -2,9 +2,19 @@
 import numpy as np
 import rospy
 import tf
+import actionlib
+import random
+
 from std_msgs.msg import String
-from geometry_msgs.msg import Twist, Pose, PoseStamped, TransformStamped
+from geometry_msgs.msg import (
+    Twist,
+    Pose,
+    PoseStamped,
+    TransformStamped,
+    PoseWithCovarianceStamped,
+)
 from sensor_msgs.msg import LaserScan
+from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 
 
 def shutdown_callback():
@@ -34,36 +44,49 @@ def pose_callback(msg):
 
 # update callback, msg is string we need to parse with information on current qr in unknown frame, next qr in unknown frame, and code message
 def msg_callback(msg):
-    str_split = msg.data.split("\r\n")
-    rospy.loginfo("Found QR {}".format(str_split))
-    split = [s.split("=")[1] for s in str_split]
-    global qr_dict
-    idx = float(split[-2])
-    qr_dict[(idx, "curr_hidden")] = [float(split[0]), float(split[1])]
-    qr_dict[(idx, "next")] = [float(split[2]), float(split[3])]
-    qr_dict[(idx, "char")] = split[-1]
+    if msg.data != "":
+        global stop_driving, qr_dict
 
-    global listener
-    try:
-        listener.waitForTransform(
-            "/map", "/camera_optical_link", rospy.Time(0), rospy.Time(1)
-        )
+        str_split = msg.data.split("\r\n")
+        split = [s.split("=")[1] for s in str_split]
+        idx = float(split[-2])
 
-        (trans, quat) = listener.lookupTransform(
-            "/map", "/camera_optical_link", rospy.Time(0)
-        )
-    except:
-        rospy.loginfo("No transform")
-        return
+        if idx in qr_dict:
+            stop_driving = False
+            # rospy.loginfo("Found QR {} again".format(idx))
+            return
+        else:
+            stop_driving = True
+            rospy.loginfo("Found new QR {}".format(idx))
+            global listener
+            try:
+                now = rospy.Time.now()
+                listener.waitForTransform(
+                    "/map", "/camera_optical_link", now, rospy.Duration(10)
+                )
 
-    R = tf.transformations.quaternion_matrix(quat)
-    T = tf.transformations.translation_matrix(trans)
-    H = tf.transformations.concatenate_matrices(T, R)
-    qr_curr_map = np.dot(H, qr_curr_cam)
-    qr_dict[(idx, "curr_map")] = qr_curr_map
+                (trans, quat) = listener.lookupTransform(
+                    "/map", "/camera_optical_link", now
+                )
+            except:
+                rospy.loginfo("No transform")
+                stop_driving = False
+                return
+            qr_dict[idx] = {}
+            qr_dict[idx]["curr_hidden"] = [float(split[0]), float(split[1])]
+            qr_dict[idx]["next"] = [float(split[2]), float(split[3])]
+            qr_dict[idx]["char"] = split[-1]
 
-    qr_curr_hidden = np.array(qr_dict[(idx, "curr")])
-    rospy.loginfo("map: {}\t hidden:{}".format(qr_curr_map[0:2], qr_curr_hidden))
+            R = tf.transformations.quaternion_matrix(quat)
+            T = tf.transformations.translation_matrix(trans)
+            H = tf.transformations.concatenate_matrices(T, R)
+            qr_curr_map = np.dot(H, qr_curr_cam)
+            qr_dict[idx]["curr_map"] = qr_curr_map
+
+            rospy.loginfo("Added QR {} to dictionary.".format(idx))
+            rospy.loginfo("Dictionary size = {}".format(len(qr_dict.keys())))
+
+            stop_driving = False
 
 
 def wandering(g_range_ahead, cmd_vel_pub):
@@ -71,12 +94,12 @@ def wandering(g_range_ahead, cmd_vel_pub):
     if g_range_ahead < 0.8:
         # TURN
         driving_forward = False
-        print("Turn")
+        # print("Turn")
 
     else:  # we're not driving_forward
         driving_forward = True  # we're done spinning, time to go forward!
         # DRIVE
-        print("Drive")
+        # print("Drive")
 
     twist = Twist()
     if driving_forward:
@@ -84,16 +107,14 @@ def wandering(g_range_ahead, cmd_vel_pub):
         twist.angular.z = 0.0
     else:
         twist.linear.x = 0.0
-        twist.angular.z = 0.4
+        twist.angular.z = -0.4
     cmd_vel_pub.publish(twist)
 
 
-def move_to_next(qr_next, cmd_vel_pub):
-    return 0
-
-
-def check_for_qr():
-    return 0
+def rotz(angle):
+    cos = np.cos
+    sin = np.sin
+    return np.array([[cos(angle), -sin(angle)], [sin(angle), cos(angle)]])
 
 
 # init rospy things
@@ -105,7 +126,19 @@ g_range_ahead = 1  # anything to start
 qr_idx = 0
 qr_dict = {}
 qr_curr_cam = None
-qr_found = False  # coords for next qr target in world
+qr_hunting = False
+stop_driving = False
+
+rob_curr_world = Pose()
+
+# # init actionlib client
+# client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
+# client.wait_for_server()
+
+# init tf transforms
+listener = tf.TransformListener()
+hidden_to_world = []
+rospy.sleep(1)
 
 # init subscribers and publishers
 scan_sub = rospy.Subscriber("scan", LaserScan, scan_callback)
@@ -113,35 +146,41 @@ qr_pos_sub = rospy.Subscriber(
     "visp_auto_tracker/object_position", PoseStamped, pose_callback
 )
 qr_msg_sub = rospy.Subscriber("visp_auto_tracker/code_message", String, msg_callback)
+# amcl_pos_sub = rospy.Subscriber(
+#     "amcl_pose", PoseWithCovarianceStamped, amcl_pose_callback
+# )
 cmd_vel_pub = rospy.Publisher("cmd_vel", Twist, queue_size=1, latch=False)
 
-# init tf transforms
-listener = tf.TransformListener()
-hidden_to_world = []
-rospy.sleep(1)
-
 while not rospy.is_shutdown():
-    if not qr_found:
-        # wandering(g_range_ahead, cmd_vel_pub)
-        # # check for next qr and solve for unknown world frame, the npublish transformation
-        if qr_curr_cam is not None and len(qr_dict) > 1:
-            # qr_found = True
-            (trans, quat) = listener.lookupTransform(
-                "/map", "/camera_optical_link", rospy.Time(0)
-            )
-            R = tf.transformations.quaternion_matrix(quat)
-            T = tf.transformations.translation_matrix(trans)
-            H = tf.transformations.concatenate_matrices(T, R)
-            # rospy.loginfo("H:{}\t qr_curr_cam:{}".format(H, qr_curr_cam))
-            qr_curr_map = np.dot(H, qr_curr_cam)
+    if not qr_hunting:
+        if not stop_driving:
+            wandering(g_range_ahead, cmd_vel_pub)
+        else:
+            t = Twist()
+            cmd_vel_pub.publish(t)
+        if len(qr_dict.keys()) >= 2:
+            qr_hunting = True
+            keys = list(qr_dict.keys())
+            p1w = np.array(qr_dict[keys[0]]["curr_map"][0:2])
+            p2w = np.array(qr_dict[keys[1]]["curr_map"][0:2])
+            p1h = np.array(qr_dict[keys[0]]["curr_hidden"][0:2])
+            p2h = np.array(qr_dict[keys[1]]["curr_hidden"][0:2])
 
-            idx = qr_dict.keys()[0][0]
-            qr_curr_hidden = np.array(qr_dict[(idx, "curr")])
-            rospy.loginfo(
-                "map: {}\t hidden:{}".format(qr_curr_map[0:2], qr_curr_hidden)
+            a = np.subtract(p1w, p2w)
+            b = np.subtract(p1h, p2h)
+            theta = np.arccos(
+                np.dot(a, b) / np.linalg.norm(a, ord=2) / np.linalg.norm(b, ord=2)
             )
-            hidden_in_map = np.subtract(qr_curr_map[0:2], qr_curr_hidden)
-            rospy.loginfo("Hidden frame origin in map frame: {}".format(hidden_in_map))
+            # rospy.loginfo("a{}\t b{}\t theta{}".format(a, b, theta))
+            hidden_in_world = np.subtract(p1w, np.dot(rotz(theta), p1h))
+            rospy.loginfo(
+                "Transformation from [w] to [h]\t angle:{:.2f}\t position:{:.2f}".format(
+                    theta * 180 / np.pi, hidden_in_world
+                )
+            )
+
+            t = Twist()
+            cmd_vel_pub.publish(t)
     else:
         pass
         # move_to_next(qr_next, cmd_vel_pub)
