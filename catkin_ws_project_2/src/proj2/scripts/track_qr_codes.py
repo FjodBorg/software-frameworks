@@ -74,7 +74,7 @@ def msg_callback(msg):
                 return
             qr_dict[idx] = {}
             qr_dict[idx]["curr_hidden"] = [float(split[0]), float(split[1])]
-            qr_dict[idx]["next"] = [float(split[2]), float(split[3])]
+            qr_dict[idx]["next_pos"] = [float(split[2]), float(split[3])]
             qr_dict[idx]["char"] = split[-1]
 
             R = tf.transformations.quaternion_matrix(quat)
@@ -137,7 +137,6 @@ client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
 
 # init tf transforms
 listener = tf.TransformListener()
-hidden_to_world = []
 rospy.sleep(1)
 
 # init subscribers and publishers
@@ -185,10 +184,12 @@ while not rospy.is_shutdown():
         rospy.loginfo("Starting phase 2")
         keys = list(qr_dict.keys())
         for key in keys:
-            next_idx = qr_dict[key]["next"]
+            next_idx = key + 1
             if next_idx not in qr_dict:
                 # move to next qr given by next
-                rospy.loginfo("Going to QR {}".format())
-                """ to do"""
-                """ calculat transformation"""
+                rospy.loginfo("Going to QR {}".format(next_idx))
+                next_pos_hidden = np.array(qr_dict[key]["next_pos"])
+                next_pos_world = np.add(
+                    np.dot(rotz(theta), next_pos_hidden), hidden_in_world
+                )
                 """send action client to new coordiante"""
