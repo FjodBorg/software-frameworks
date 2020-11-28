@@ -17,6 +17,16 @@ from sensor_msgs.msg import LaserScan
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 
 
+KEYPOINTS = [
+    [[-4.43386650085, 2.58987593651, 0], [0, 0, -0.454587318297, 0.890702178084]],
+    [[-3.94284963608, -2.56628060341, 0], [0, 0, 0.716695789534, 0.6973859371]],
+    [[3.80292606354, 0.575657725334, 0], [0, 0, 0, 1]],
+    [[6.74980449677, 2.69655823708, 0], [0, 0, -0.773033822559, 0.634364807646]],
+]
+DIST_THRESH = 2
+MAP_BOUNDS = [[-4, 4], [-7.5, 7.5]]
+
+
 def shutdown_callback():
     cmd_vel_pub = rospy.Publisher("cmd_vel", Twist, queue_size=1, latch=False)
     twist = Twist()
@@ -45,7 +55,11 @@ def pose_callback(msg):
 # update callback, msg is string we need to parse with information on current qr in unknown frame, next qr in unknown frame, and code message
 def msg_callback(msg):
     if msg.data != "":
-        global stop_driving, qr_dict
+        global stop_driving, qr_dict, qr_curr_cam
+        if qr_curr_cam is None or qr_curr_cam[2] >= DIST_THRESH:
+            stop_driving = False
+            # rospy.loginfo("Found QR but too far for good measurement")
+            return
 
         str_split = msg.data.split("\r\n")
         split = [s.split("=")[1] for s in str_split]
@@ -57,7 +71,7 @@ def msg_callback(msg):
             return
         else:
             stop_driving = True
-            rospy.loginfo("Found new QR {}".format(idx))
+            rospy.loginfo("Found QR {}".format(int(idx)))
             global listener
             try:
                 now = rospy.Time.now()
@@ -72,21 +86,27 @@ def msg_callback(msg):
                 rospy.loginfo("No transform")
                 stop_driving = False
                 return
-            qr_dict[idx] = {}
-            qr_dict[idx]["curr_hidden"] = [float(split[0]), float(split[1])]
-            qr_dict[idx]["next_pos"] = [float(split[2]), float(split[3])]
-            qr_dict[idx]["char"] = split[-1]
 
             R = tf.transformations.quaternion_matrix(quat)
             T = tf.transformations.translation_matrix(trans)
             H = tf.transformations.concatenate_matrices(T, R)
             qr_curr_map = np.dot(H, qr_curr_cam)
+            qr_dict[idx] = {}
+            qr_dict[idx]["curr_hidden"] = [float(split[0]), float(split[1])]
+            qr_dict[idx]["next_pos"] = [float(split[2]), float(split[3])]
+            qr_dict[idx]["char"] = split[-1]
             qr_dict[idx]["curr_map"] = qr_curr_map
 
-            rospy.loginfo("Added QR {} to dictionary.".format(idx))
+            rospy.loginfo(
+                "Added QR {} to dictionary with measured position:{}".format(
+                    int(idx), qr_curr_map
+                )
+            )
             rospy.loginfo("Dictionary size = {}".format(len(qr_dict.keys())))
 
             stop_driving = False
+            global client
+            client.cancel_all_goals()
 
 
 def wandering(g_range_ahead, cmd_vel_pub):
@@ -117,23 +137,48 @@ def rotz(angle):
     return np.array([[cos(angle), -sin(angle)], [sin(angle), cos(angle)]])
 
 
+def goal_pose(pose):
+    goal_pose = MoveBaseGoal()
+    goal_pose.target_pose.header.frame_id = "map"
+    goal_pose.target_pose.pose.position.x = pose[0][0]
+    goal_pose.target_pose.pose.position.y = pose[0][1]
+    goal_pose.target_pose.pose.position.z = pose[0][2]
+    goal_pose.target_pose.pose.orientation.x = pose[1][0]
+    goal_pose.target_pose.pose.orientation.y = pose[1][1]
+    goal_pose.target_pose.pose.orientation.z = pose[1][2]
+    goal_pose.target_pose.pose.orientation.w = pose[1][3]
+
+    return goal_pose
+
+
+def goal_position(position):
+    goal_pose = MoveBaseGoal()
+    goal_pose.target_pose.header.frame_id = "map"
+    goal_pose.target_pose.pose.position.x = position[0]
+    goal_pose.target_pose.pose.position.y = position[1]
+    goal_pose.target_pose.pose.position.z = 0.0
+    goal_pose.target_pose.pose.orientation.x = 0
+    goal_pose.target_pose.pose.orientation.y = 0
+    goal_pose.target_pose.pose.orientation.z = 0
+    goal_pose.target_pose.pose.orientation.w = 1.0
+
+    return goal_pose
+
+
 # init rospy things
 rospy.init_node("track_qr_codes")
 rate = rospy.Rate(60)
 rospy.on_shutdown(shutdown_callback)
 
 g_range_ahead = 1  # anything to start
-qr_idx = 0
 qr_dict = {}
 qr_curr_cam = None
 qr_hunting = False
 stop_driving = False
 
-rob_curr_world = Pose()
-
 # # init actionlib client
 client = actionlib.SimpleActionClient("move_base", MoveBaseAction)
-# client.wait_for_server()
+client.wait_for_server()
 
 # init tf transforms
 listener = tf.TransformListener()
@@ -150,10 +195,20 @@ qr_msg_sub = rospy.Subscriber("visp_auto_tracker/code_message", String, msg_call
 # )
 cmd_vel_pub = rospy.Publisher("cmd_vel", Twist, queue_size=1, latch=False)
 
+# move to a good position for QR codes
+# pose = [[-3.18581056595, 0.361307609081, 0.0], [0, 0, -0.718677107716, 0.695343954345]]
+# goal = goal_pose(pose)
+# client.send_goal(goal)
+# client.wait_for_result()
+key_idx = 0
 while not rospy.is_shutdown():
     if not qr_hunting:
         if not stop_driving:
-            wandering(g_range_ahead, cmd_vel_pub)
+            # wandering(g_range_ahead, cmd_vel_pub)
+            goal = goal_pose(KEYPOINTS[key_idx])
+            key_idx = key_idx + 1 if key_idx < len(KEYPOINTS) else 0
+            client.send_goal(goal)
+            client.wait_for_result()
         else:
             t = Twist()
             cmd_vel_pub.publish(t)
@@ -171,25 +226,67 @@ while not rospy.is_shutdown():
                 np.dot(a, b) / np.linalg.norm(a, ord=2) / np.linalg.norm(b, ord=2)
             )
             # rospy.loginfo("a{}\t b{}\t theta{}".format(a, b, theta))
-            hidden_in_world = np.subtract(p1w, np.dot(rotz(theta), p1h))
+            hidden_in_world = (
+                np.add(
+                    np.subtract(p1w, np.dot(rotz(theta), p1h)),
+                    np.subtract(p2w, np.dot(rotz(theta), p2h)),
+                )
+                / 2
+            )
             rospy.loginfo(
-                "Transformation from [w] to [h]\t angle:{0:.2f}\t position:{1:.2f}".format(
+                "Transformation from [w] to [h]\t angle:{:.2f}\t position:{}".format(
                     theta * 180 / np.pi, hidden_in_world
                 )
             )
 
             t = Twist()
             cmd_vel_pub.publish(t)
+
+            rospy.loginfo("Starting phase 2")
     else:
-        rospy.loginfo("Starting phase 2")
         keys = list(qr_dict.keys())
         for key in keys:
-            next_idx = key + 1
+            next_idx = key + 1 if key < 5 else 1
             if next_idx not in qr_dict:
                 # move to next qr given by next
-                rospy.loginfo("Going to QR {}".format(next_idx))
                 next_pos_hidden = np.array(qr_dict[key]["next_pos"])
                 next_pos_world = np.add(
                     np.dot(rotz(theta), next_pos_hidden), hidden_in_world
                 )
-                """send action client to new coordiante"""
+                # rospy.loginfo(
+                #     "theta:{}\t next pos hidden:{}\t next_post_world:{}\t hidden in world:{}".format(
+                #         theta * 180 / np.pi,
+                #         next_pos_hidden,
+                #         next_pos_world,
+                #         hidden_in_world,
+                #     )
+                # )
+                rospy.loginfo(
+                    "Next is QR {} at {}".format(int(next_idx), next_pos_world)
+                )
+
+                # only go 75% of the way
+                # rob_pos = rospy.wait_for_message(
+                #     "amcl_pose", PoseWithCovarianceStamped()
+                # ).pose.pose.position
+                # rob_pos = np.array([rob_pos.x, rob_pos.y])
+                # delta_pos = np.subtract(rob_pos, next_pos_world)
+                # next_pos_world = np.add(rob_pos, 0.75 * delta_pos)
+                # rospy.loginfo("Going to {}".format(next_pos_world))
+
+                # send action client to new coordiante
+                goal = goal_position(next_pos_world)  # goal_pose(qr_transformed pose)
+                client.send_goal(goal)
+                client.wait_for_result()
+                rospy.loginfo("Couldn't find QR en route, checking area")
+                t = Twist()
+                t.angular.z = -0.4
+                cmd_vel_pub.publish(t)
+                rospy.sleep(10)
+        if len(qr_dict) == 5:
+            rospy.loginfo("Finsihed")
+            msg = []
+            for i in range(5):
+                msg.append(qr_dict[i + 1]["char"])
+            rospy.loginfo("Message is {}".format(msg))
+            break
