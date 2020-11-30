@@ -13,7 +13,7 @@ rosrun proj1 move_cubes_to_bucket.py
 
 ## Final Project
 
-In order to view the solution see either `proj2.mp4` or `proj2.mp4` or run the following code from `catkin_ws_project_2`
+In order to view the solution see video `proj2.mp4` or run the following code from `catkin_ws_project_2`
 ```
 roslaunch proj2 run_all.launch
 rosrun proj2 track_qr_codes.py
