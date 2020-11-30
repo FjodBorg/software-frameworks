@@ -8,7 +8,7 @@ roslaunch jaco_on_table jaco_on_table_gazebo_controlled.launch load_grasp_fix :=
 roslaunch jaco_on_table_moveit jaco_on_table_moveit.launch
 roslaunch jaco_on_table_moveit jaco_on_table_rviz.launch
 rosrun proj1 cube_spawn.py
-rosurn proj1 move_cubes_to_bucket.py
+rosrun proj1 move_cubes_to_bucket.py
 ``` 
 
 ## Final Project
